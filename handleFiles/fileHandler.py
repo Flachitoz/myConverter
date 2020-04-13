@@ -1,6 +1,5 @@
 import os
 import win32com.client
-from shutil import copyfile
 from tkinter import filedialog, StringVar, Label
 
 
@@ -8,11 +7,14 @@ class FileHandler:
 
     def __init__(self):
         self.input_file = None
-        self.output_file = None
+        self.is_converted = False
+        self.document = None
+        self.word = None
+        self.format = None
 
-    def open_file(self, open_message: StringVar, open_label: Label, convert_message: StringVar, save_message: Label) -> None:
-        self.input_file = None
-        self.output_file = None
+    def open_file(self, open_message: StringVar, open_label: Label, convert_message: StringVar,
+                  save_message: Label) -> None:
+        self.__init__()
 
         file_types = [("WORD", "*.docx"), ("PDF", "*.pdf"), ('All files', '*')]
         accepted_extensions = {'pdf', 'docx'}
@@ -40,9 +42,9 @@ class FileHandler:
             label.config(fg='red')
             message.set("No valid file selected for the conversion! Please open a valid file")
             return
-        elif self.output_file is not None:
+        elif self.is_converted:
             label.config(fg='red')
-            message.set("File has already been converted! Please open another valid file")
+            message.set("File has already been converted! Please save it or open another valid file")
             return
 
         extension = self.input_file.split('/')[-1].split('.')[-1]
@@ -54,59 +56,54 @@ class FileHandler:
             message.set("You cannot convert the file in the same extension it has!")
         else:
             try:
-                output_file = self.input_file.split('.')[0] + ".{}".format(file_type)
-                word = win32com.client.Dispatch("Word.Application")
-                document = word.Documents.Open(FileName=os.path.abspath(self.input_file), Visible=False)
-                document.SaveAs2(FileName=os.path.abspath(output_file), FileFormat=file_format)
-                document.Close()
-                word.Quit()
+                self.word = win32com.client.Dispatch("Word.Application")
+                self.document = self.word.Documents.Open(FileName=os.path.abspath(self.input_file), Visible=False)
+                self.format = file_format
             except Exception:
                 label.config(fg='red')
                 message.set("Something went wrong in the conversion!")
                 return
             label.config(fg='green')
             message.set("Conversion to {} succesfully completed!".format(file_type))
-            self.output_file = output_file
+            self.is_converted = True
 
     def save_file(self, message: StringVar, label: Label) -> None:
+        extensions = {"docx": "pdf", "pdf": "docx"}
         if self.input_file is None:
             label.config(fg='red')
             message.set("No valid file selected for the conversion! Please open a valid file")
             return
-        elif self.output_file is None:
+        elif not self.is_converted:
             label.config(fg='red')
             message.set("No file converted to be saved! Please convert the file selected")
             return
 
-        extension = self.output_file.split('/')[-1].split('.')[-1]
-        initial_file = self.output_file.split('/')[-1].split('.')[0]
+        extension = extensions[self.input_file.split('/')[-1].split('.')[-1]]
+        initial_file = self.input_file.split('/')[-1].split('.')[0]
         file_types = [('All files', '*')]
-        saved_file = filedialog.asksaveasfilename(confirmoverwrite=True, title='Save As', initialdir="/",
-                                                  defaultextension='.'+extension, initialfile=initial_file,
-                                                  filetypes=file_types)
+        output_file = filedialog.asksaveasfilename(confirmoverwrite=True, title='Save As', initialdir="/",
+                                                   defaultextension='.'+extension, initialfile=initial_file,
+                                                   filetypes=file_types)
 
-        output_extension = saved_file.split('/')[-1].split('.')[-1]
-        if not saved_file:
-            label.config(fg='green')
-            message.set("File saved in the same folder of the initial one!")
+        output_extension = output_file.split('/')[-1].split('.')[-1]
+        if not output_file:
+            label.config(fg='red')
+            message.set("No path selected!")
+            return
         elif output_extension != extension:
             label.config(fg='red')
             message.set("Invalid file extension, it cannot be saved!")
             return
         else:
-            if self.output_file != saved_file:
-                try:
-                    copyfile(self.output_file, saved_file)
-                    os.remove(self.output_file)
-                except Exception:
-                    label.config(fg='red')
-                    message.set("Something went wrong in the saving phase!")
-                    return
-                label.config(fg='green')
-                message.set("File {} saved in the folder selected!".format(saved_file.split('/')[-1]))
-            else:
-                label.config(fg='green')
-                message.set("File {} saved in the same folder of the initial one".format(saved_file.split('/')[-1]))
+            try:
+                self.document.SaveAs2(FileName=os.path.abspath(output_file), FileFormat=self.format)
+                self.document.Close()
+                self.word.Quit()
+            except Exception:
+                label.config(fg='red')
+                message.set("Something went wrong in the saving phase!")
+                return
+            label.config(fg='green')
+            message.set("File {} saved in the folder selected!".format(output_file.split('/')[-1]))
 
-        self.input_file = None
-        self.output_file = None
+            self.__init__()
