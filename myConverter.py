@@ -1,6 +1,6 @@
 import tkinter as tk
 from utils.utilities import resource_path
-from handleFiles.fileHandler import FileHandler
+from handler.fileHandler import FileHandler
 
 
 # initialize initial and converted file path

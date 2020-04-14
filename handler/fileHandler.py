@@ -56,6 +56,9 @@ class FileHandler:
             message.set("You cannot convert the file in the same extension it has!")
         else:
             try:
+                label.config(fg='goldenrod')
+                message.set("Conversion ongoing, please wait...")
+                label.update()
                 self.word = win32com.client.Dispatch("Word.Application")
                 self.document = self.word.Documents.Open(FileName=os.path.abspath(self.input_file), Visible=False)
                 self.format = file_format
@@ -78,11 +81,16 @@ class FileHandler:
             message.set("No file converted to be saved! Please convert the file selected")
             return
 
-        extension = extensions[self.input_file.split('/')[-1].split('.')[-1]]
+        try:
+            correct_extension = extensions[self.input_file.split('/')[-1].split('.')[-1]]
+        except KeyError:
+            label.config(fg='red')
+            message.set("Invalid input file!")
+            return
         initial_file = self.input_file.split('/')[-1].split('.')[0]
         file_types = [('All files', '*')]
         output_file = filedialog.asksaveasfilename(confirmoverwrite=True, title='Save As', initialdir="/",
-                                                   defaultextension='.'+extension, initialfile=initial_file,
+                                                   defaultextension='.'+correct_extension, initialfile=initial_file,
                                                    filetypes=file_types)
 
         output_extension = output_file.split('/')[-1].split('.')[-1]
@@ -90,12 +98,15 @@ class FileHandler:
             label.config(fg='red')
             message.set("No path selected!")
             return
-        elif output_extension != extension:
+        elif output_extension != correct_extension:
             label.config(fg='red')
             message.set("Invalid file extension, it cannot be saved!")
             return
         else:
             try:
+                label.config(fg='goldenrod')
+                message.set("Saving file, please wait...")
+                label.update()
                 self.document.SaveAs2(FileName=os.path.abspath(output_file), FileFormat=self.format)
                 self.document.Close()
                 self.word.Quit()
